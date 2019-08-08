@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+    <title>index.html</title>
+    <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='bootstrap/css/bootstrap.min.css') }}">
+    <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/Contact-Form-Clean.css') }}">
+    <link rel="stylesheet" href="./assets/css/styles.css">
+</head>
+
+<body>
+    <nav class="navbar navbar-light navbar-expand-md" style="background-color: #005984;">
+        <div class="container-fluid"><img src="\static\img/logo.png" style="width: 100px;">
+            <div class="collapse navbar-collapse" id="navcol-1">
+                <ul class="nav navbar-nav">
+                    <li class="nav-item" role="presentation"></li>
+                    <li class="nav-item" role="presentation"></li>
+                    <li class="nav-item" role="presentation"></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <nav class="navbar navbar-light navbar-expand-md" style="background-color: #54b948;height: 15px;">
+        <div class="container-fluid">
+            <div class="collapse navbar-collapse" id="navcol-2">
+                <ul class="nav navbar-nav">
+                    <li class="nav-item" role="presentation"></li>
+                    <li class="nav-item" role="presentation"></li>
+                    <li class="nav-item" role="presentation"></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="contact-clean" style="background-repeat: no-repeat;background-size: cover;background-position: 100% 70%; background-image: url({{ url_for('static', filename='img/background.jpg') }});height: 500px;">
+       <form method=post enctype=multipart/form-data>
+           <h2 class="text-center">OFU Tool</h2>
+            <input class="shadow" type=file name=file style="width: 100%;">
+           <div class="form-group">
+            <button class="btn btn-primary" type=submit value=Upload>SUBMIT</button>
+           </div>
+       </form>
+
+<!--            <div class="form-group">-->
+<!--&lt;!&ndash;                <button class="btn btn-primary" type=submit value=Upload>Submit</button>&ndash;&gt;-->
+<!--                <input type="submit" value="upload">-->
+<!--            </div>-->
+<!--        </form>-->
+    </div>
+    <div class="container" style="padding-top: 30px;">
+        <div class="row" style="padding-bottom: 20px;">
+            <div class="col-12 d-flex d-sm-flex justify-content-center justify-content-sm-center">
+                <h6 class="d-xl-flex justify-content-xl-center">(follow these steps before uploading)</h6>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col d-xl-flex justify-content-xl-center"><img src="\static\img\guide.png" style="width: 100%;height: 100%;"></div>
+        </div>
+        <div class="row" style="padding-top: 20px;">
+            <div class="col">
+                <ul>
+                    <li>Scroll down to the bottom of the document until you see the MED data</li>
+                </ul>
+            </div>
+            <div class="col-1"></div>
+            <div class="col">
+                <ul>
+                    <li>Highlight the area</li>
+                </ul>
+            </div>
+            <div class="col-1"></div>
+            <div class="col">
+                <ul>
+                    <li>Delete/remove data</li>
+                    <li>Make sure that there are no merged cells in the area that was deleted&nbsp;</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <script src="assets/js/jquery.min.js"></script>
+    <script src="assets/bootstrap/js/bootstrap.min.js"></script>
+</body>
+
+</html>
