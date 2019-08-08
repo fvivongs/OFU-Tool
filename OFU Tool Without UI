@@ -1,0 +1,661 @@
+import pandas as pd
+import numpy as np
+from io import StringIO
+
+# df = pd.read_excel(StringIO('NewData.xlsx'), sep=' ', keep_default_na=False, na_values=['_'])
+df = pd.read_excel('NewData.xlsx', header=0, dtype=object, na_filter = False)
+# df = pd.read_excel('NewData.xlsx')
+
+# ========================================================================================================================
+# Separate pages on "code_type.xlsx" into dataframes
+# ========================================================================================================================
+rules = pd.ExcelFile("code_type.xlsx")
+df_cd = pd.read_excel(rules, 'CD Type')
+df_rs = pd.read_excel(rules, 'RS Type')
+df_cause = pd.read_excel(rules, 'Cause Type')
+df_fm = pd.read_excel(rules, 'FM Type')
+df_atdm = pd.read_excel(rules, 'ATDM Type')
+df_ec = pd.read_excel(rules, 'EC Type')
+df_ms = pd.read_excel(rules, 'MS Type')
+df_po = pd.read_excel(rules, 'PO Type')
+df_we = pd.read_excel(rules, 'WE Type')
+# ========================================================================================================================
+# END
+# ========================================================================================================================
+
+df.replace('NA', 'NA', inplace=True)
+df.replace('', np.nan, inplace=True)
+
+
+cdNullCondition = [df['Clearing Device'].isnull()]
+rsNullCondition = [df['Resp. System'].isnull()]
+causeNullCondition = [df['Cause (IEEE)'].isnull()]
+fmNullCondition = [df['Failure Mode'].isnull()]
+atdmNullCondition = [df['AT/D/M'].isnull()]
+ecNullCondition = [df['Eq. Code'].isnull()]
+msNullCondition = [df['Manuf./ Species'].isnull()]
+poNullCondition = [df['Planned Outages'].isnull()]
+weNullCondition = [df['WE'].isnull()]
+
+general_error_choices = ['---']
+
+# ========================================================================================================================
+# Constructing codes for low level filtering
+# Bottom code is referencing the variables above. States that if there is a null value, the cell is replaced ith '---'.
+# If code is present, then the first two characters are taken and added to a new dataframe
+# ========================================================================================================================
+
+df['LOW_CD'] = np.select(cdNullCondition, general_error_choices, default=df['Clearing Device'].astype(str).str[0:2])
+df['LOW_RS'] = np.select(rsNullCondition, general_error_choices, default=df['Resp. System'].astype(str).str[0:2])
+df['LOW_Cause'] = np.select(causeNullCondition, general_error_choices, default=df['Cause (IEEE)'].astype(str).str[0:2])
+df['LOW_FM'] = np.select(fmNullCondition, general_error_choices, default=df['Failure Mode'].astype(str).str[0:2])
+df['LOW_ATDM'] = np.select(atdmNullCondition, general_error_choices, default=df['AT/D/M'].astype(str).str[0:2])
+df['LOW_EC'] = np.select(ecNullCondition, general_error_choices, default=df['Eq. Code'].astype(str).str[0:2])
+df['LOW_MS'] = np.select(msNullCondition, general_error_choices, default=df['Manuf./ Species'].astype(str).str[0:2])
+df['LOW_PO'] = np.select(poNullCondition, general_error_choices, default=df['Planned Outages'].astype(str).str[0:2])
+df['LOW_WE'] = np.select(weNullCondition, general_error_choices, default=df['WE'].astype(str).str[0:2])
+
+# ========================================================================================================================
+# Constructing codes for high level filtering
+# ========================================================================================================================
+
+df['trimmed_CD'] = np.select(cdNullCondition, general_error_choices,
+                             default='CD_' + df['Clearing Device'].astype(str).str[0:2])
+df['trimmed_RS'] = np.select(rsNullCondition, general_error_choices,
+                             default='RS_' + df['Resp. System'].astype(str).str[0:2])
+df['trimmed_Cause'] = np.select(causeNullCondition, general_error_choices,
+                                default='Cause_' + df['Cause (IEEE)'].astype(str).str[0:2])
+df['trimmed_FM'] = np.select(fmNullCondition, general_error_choices,
+                             default='FM_' + df['Failure Mode'].astype(str).str[0:2])
+df['trimmed_ATDM'] = np.select(atdmNullCondition, general_error_choices,
+                               default='AT_' + df['AT/D/M'].astype(str).str[0:2])
+df['trimmed_EC'] = np.select(ecNullCondition, general_error_choices,
+                             default='EC_' + df['Eq. Code'].astype(str).str[0:2])
+df['trimmed_MS'] = np.select(msNullCondition, general_error_choices,
+                             default='MS_' + df['Manuf./ Species'].astype(str).str[0:2])
+df['trimmed_PO'] = np.select(poNullCondition, general_error_choices,
+                             default='PO_' + df['Planned Outages'].astype(str).str[0:2])
+df['trimmed_WE'] = np.select(weNullCondition, general_error_choices, default='WE_' + df['WE'].astype(str).str[0:2])
+
+# ========================================================================================================================
+# high level codes continued (references "code_type.xlsx")
+# Dataframes above were joined to extract the rules from 'code_type.xlsx' to create high level columns (ie. highCD, highFM, etc.)
+# ========================================================================================================================
+
+df = df.merge(df_cd, on=['trimmed_CD'], how='left')
+df = df.merge(df_rs, on=['trimmed_RS'], how='left')
+df = df.merge(df_cause, on=['trimmed_Cause'], how='left')
+df = df.merge(df_fm, on=['trimmed_FM'], how='left')
+df = df.merge(df_atdm, on=['trimmed_ATDM'], how='left')
+df = df.merge(df_ec, on=['trimmed_EC'], how='left')
+df = df.merge(df_ms, on=['trimmed_MS'], how='left')
+df = df.merge(df_po, on=['trimmed_PO'], how='left')
+df = df.merge(df_we, on=['trimmed_WE'], how='left')
+
+#This replaceing Null Values for the HIGH LEVEL CODES COLUMN
+df.replace('', '---', inplace=True) # perhaps this is redundant
+df['Cnt'].fillna('---', inplace=True)
+df.fillna('---', inplace=True)
+
+# New columns created to generate the significant output of the tests
+df['Notification'] = 'Valid'
+df['Correction Comments'] = ''
+df['Informational Comments'] = ''
+# df['# Corrections'] = 0
+
+# ================================
+# NULL CLEARING DEVICE
+# ================================
+
+def findNull_CD(df):
+    if (df['Clearing Device'] == '---'):
+        return False
+    else:
+        return True
+
+df['findNull_CD'] = df.apply(findNull_CD, axis=1)
+
+df.loc[df['findNull_CD'] == False, 'Notification'] = 'Informational'
+# df.loc[df['findNull_CD'] == False, '# Corrections'] = df['# Corrections'] + 1
+df.loc[df['findNull_CD'] == False, 'Informational Comments'] = df['Informational Comments'] + 'Missing Responsible System. '
+
+# ================================
+# NULL RESPONSIBLE SYSTEM
+# ================================
+
+def findNull_RS(df):
+    if (df['Resp. System'] == '---'):
+        return False
+    else:
+        return True
+
+df['findNull_RS'] = df.apply(findNull_RS, axis=1)
+
+df.loc[df['findNull_RS'] == False, 'Notification'] = 'Informational'
+# df.loc[df['findNull_RS'] == False, '# Corrections'] = df['# Corrections'] + 1
+df.loc[df['findNull_RS'] == False, 'Informational Comments'] = df['Informational Comments'] + 'Missing Responsible System. '
+
+# ================================
+# NULL CAUSE
+# ================================
+
+def findNull_Cause(df):
+    if (df['Cause (IEEE)'] == '---'):
+        return False
+    else:
+        return True
+
+df['findNull_Cause'] = df.apply(findNull_Cause, axis=1)
+
+df.loc[df['findNull_Cause'] == False, 'Notification'] = 'Informational'
+# df.loc[df['findNull_Cause'] == False, '# Corrections'] = df['# Corrections'] + 1
+df.loc[df['findNull_Cause'] == False, 'Informational Comments'] = df['Informational Comments'] + 'Missing Cause (IEEE). '
+
+# ================================
+# NULL FAILUREMODE
+# ================================
+
+def findNull_FM(df):
+    if (df['Failure Mode'] == '---'):
+        return False
+    else:
+        return True
+
+df['findNull_FM'] = df.apply(findNull_FM, axis=1)
+
+df.loc[df['findNull_FM'] == False, 'Notification'] = 'Informational'
+# df.loc[df['findNull_FM'] == False, '# Corrections'] = df['# Corrections'] + 1
+df.loc[df['findNull_FM'] == False, 'Informational Comments'] = df['Informational Comments'] + 'Missing Cause (IEEE). '
+
+# ================================
+# NULL AT/D/M
+# ================================
+
+def findNull_ATDM(df):
+    if (df['AT/D/M'] == '---'):
+        return False
+    else:
+        return True
+
+df['findNull_ATDM'] = df.apply(findNull_ATDM, axis=1)
+
+df.loc[df['findNull_ATDM'] == False, 'Notification'] = 'Informational'
+# df.loc[df['findNull_ATDM'] == False, '# Corrections'] = df['# Corrections'] + 1
+df.loc[df['findNull_ATDM'] == False, 'Informational Comments'] = df['Informational Comments'] + 'Missing AT/D/M. '
+
+# ================================
+# NULL AT/D/M
+# ================================
+
+def findNull_EC(df):
+    if (df['Eq. Code'] == '---'):
+        return False
+    else:
+        return True
+
+df['findNull_EC'] = df.apply(findNull_EC, axis=1)
+
+df.loc[df['findNull_EC'] == False, 'Notification'] = 'Informational'
+# df.loc[df['findNull_EC'] == False, '# Corrections'] = df['# Corrections'] + 1
+df.loc[df['findNull_EC'] == False, 'Informational Comments'] = df['Informational Comments'] + 'Missing Eq. Code. '
+
+# ================================
+# NULL MANUFACTURER/SPECIES
+# ================================
+
+# def findNull_MS(df):
+#     if (df['Manuf./ Species'] == '---'):
+#         return False
+#     else:
+#         return True
+#
+# df['findNull_MS'] = df.apply(findNull_MS, axis=1)
+#
+# df.loc[df['findNull_MS'] == False, 'Notification'] = 'Informational'
+# # df.loc[df['findNull_MS'] == False, '# Corrections'] = df['# Corrections'] + 1
+# df.loc[df['findNull_MS'] == False, 'Informational Comments'] = df['Informational Comments'] + 'Missing Manuf./ Species. '
+
+# ================================
+# NULL MANUFACTURER/SPECIES
+# ================================
+
+def findNull_PO(df):
+    if (df['Planned Outages'] == '---'):
+        return False
+    else:
+        return True
+
+df['findNull_PO'] = df.apply(findNull_PO, axis=1)
+
+df.loc[df['findNull_PO'] == False, 'Notification'] = 'Informational'
+# df.loc[df['findNull_PO'] == False, '# Corrections'] = df['# Corrections'] + 1
+df.loc[df['findNull_PO'] == False, 'Informational Comments'] = df['Informational Comments'] + 'Missing Planned Outage. '
+
+# ================================
+# NULL MANUFACTURER/SPECIES
+# ================================
+
+def findNull_WE(df):
+    if (df['WE'] == '---'):
+        return False
+    else:
+        return True
+
+df['findNull_WE'] = df.apply(findNull_WE, axis=1)
+
+df.loc[df['findNull_WE'] == False, 'Notification'] = 'Informational'
+# df.loc[df['findNull_WE'] == False, '# Corrections'] = df['# Corrections'] + 1
+df.loc[df['findNull_WE'] == False, 'Informational Comments'] = df['Informational Comments'] + 'Missing Weather. '
+
+# ========================================================================================================================
+# HIGH LEVEL TEST: Compares Cause (IEEE) to High Level Failure Mode
+# ========================================================================================================================
+
+df['test1'] = (
+        (df['LOW_Cause'] == '03') & (df['highFM'] == 'tree codes') |
+        # Vegetation
+        (df['LOW_Cause'] == '20') & ((df['highFM'] == 'deterioration') | (df['highFM'] == 'design issues')) |
+        # Equipment Failure
+        (df['LOW_Cause'] == '09') & ((df['highFM'] == 'human intervention') | (df['highFM'] == 'tree codes')) |
+        # Public Accident/Damage
+        (df['LOW_Cause'] == '04') & ((df['highFM'] == 'environment') | (df['highFM'] == 'design issues')) |
+        # WildLife
+        (df['LOW_Cause'] == '19') & ((df['highFM'] == 'environment') | (df['highFM'] == 'design issues')) |
+        # Lightning Strike
+        (df['LOW_Cause'] == 'EA') & (df['highFM'] == 'environment') |
+        # Weather
+        (df['LOW_Cause'] == '05') & ((df['highFM'] == 'work request') | (df['highFM'] == 'design issues')) |
+
+        # ================================
+        # The following may need revision:
+        # ================================
+
+        (df['LOW_Cause'] == '41') |
+        # Loss of Transmission/Generation
+        (df['LOW_Cause'] == '11') |
+        # Unknown Cause
+        (df['LOW_Cause'] == '28')
+    # Other Cause
+)
+df.loc[((df['test1'] == False) & (df['Notification'] != 'Correction')), 'Notification'] = 'Informational'
+df.loc[df['test1'] == False, 'Informational Comments'] = df['Informational Comments'] + 'Cause and Failure Mode do not match. '
+# ========================================================================================================================
+# TEST END
+# ========================================================================================================================
+
+# ========================================================================================================================
+# TESTS: VEGETATION
+# ========================================================================================================================
+
+def Test_Veg_FM2ATDM(df):
+    if (df['highFM'] == 'tree codes') & (df['highATDM'] == 'tree defects'):
+        return True
+    elif (df['highFM'] == 'tree codes') & (df['LOW_ATDM'] == '37'):
+        return True
+    elif (df['highFM'] == 'tree codes') & (df['LOW_ATDM'] != '37'):
+        return False
+    elif (df['highFM'] == 'tree codes') & (df['highATDM'] != 'tree defects'):
+        return False
+    return '---'
+df['Test_Veg_FM2ATDM'] = df.apply(Test_Veg_FM2ATDM, axis=1)
+df.loc[df['Test_Veg_FM2ATDM'] == False, 'Notification'] = 'Correction'
+df.loc[df['Test_Veg_FM2ATDM'] == False, 'Correction Comments'] = df['Correction Comments'] + 'ATDM does not align with Failure Mode. '
+
+def Test_Veg_EC(df):
+    if (df['highFM'] == 'tree codes') & (df['Eq. Code'] == '---'):
+        return False
+    elif (df['highFM'] == 'tree codes') & (df['Eq. Code'] != '---'):
+        return True
+    return '---'
+df['Test_Veg_EC'] = df.apply(Test_Veg_EC, axis=1)
+df.loc[((df['Test_Veg_EC'] == False) & (df['Notification'] != 'Correction')), 'Notification'] = 'Informational'
+df.loc[df['Test_Veg_EC'] == False, 'Informational Comments'] = df['Informational Comments'] + 'Equipment Code should be NA if no equipment damaged. '
+
+def Test_Veg_MS(df):
+    if (df['highFM'] == 'tree codes') & (df['highATDM'] == 'tree defects') & (df['highMS'] == 'plants'):
+        return True
+    elif (df['highFM'] == 'tree codes') & (df['highATDM'] == 'tree defects') & (df['highMS'] != 'plants'):
+        return False
+    return '---'
+df['Test_Veg_MS'] = df.apply(Test_Veg_MS, axis=1)
+df.loc[df['Test_Veg_MS'] == False, 'Notification'] = 'Correction'
+df.loc[df['Test_Veg_MS'] == False, 'Correction Comments'] = df['Correction Comments'] + 'Species is not a plant. '
+
+def Test_Veg_CNT(df):
+    if (df['Test_Veg_MS'] == True) & (df['Cnt'] != '---'):
+        return True
+    elif (df['Test_Veg_MS'] == True) & (df['Cnt'] == '---'):
+        return False
+    return '---'
+df['Test_Veg_CNT'] = df.apply(Test_Veg_CNT, axis=1)
+df.loc[df['Test_Veg_CNT'] == False, 'Notification'] = 'Correction'
+df.loc[df['Test_Veg_CNT'] == False, 'Correction Comments'] = df['Correction Comments'] + 'Count is missing. '
+
+def Test_Veg_Ded(df):
+    if (df['LOW_FM'] == 'TD') &(df['LOW_ATDM'] == 'D2'):
+        return True
+    elif (df['LOW_FM'] == 'TD') & (df['LOW_ATDM'] != 'D2'):
+        return False
+    return '---'
+df['Test_Veg_Ded'] = df.apply(Test_Veg_Ded, axis=1)
+df.loc[df['Test_Veg_Ded'] == False, 'Notification'] = 'Correction'
+df.loc[df['Test_Veg_Ded'] == False, 'Correction Comments'] = df['Correction Comments'] + 'ATDM shoud be D2 Dead. '
+
+# ========================================================================================================================
+# END TESTS: VEGETATION
+# ========================================================================================================================
+
+# ========================================================================================================================
+# TESTS: EQUIPMENT CODE
+# ========================================================================================================================
+
+def Test_EQ_FM2ATDM(df):
+    if ((df['highFM'] == 'deterioration') | (df['highFM'] == 'human intervention')) & ((df['highATDM'] == 'actions taken') | (df['highATDM'] == 'materials')):
+        return True
+    elif (df['highFM'] == 'design issues') & ((df['LOW_FM'] == 'HX') | (df['LOW_FM'] == 'FH')) & ((df['highATDM'] == 'actions taken') | (df['highATDM'] == 'materials')):
+        return True
+    elif ((df['highFM'] == 'deterioration') | (df['highFM'] == 'human intervention')) & ((df['highATDM'] != 'actions taken') | (df['highATDM'] != 'materials')):
+        return False
+    elif (df['highFM'] == 'design issues') & ((df['LOW_FM'] == 'HX') | (df['LOW_FM'] == 'FH')) & ((df['highATDM'] != 'actions taken') | (df['highATDM'] != 'materials')):
+        return False
+    return '---'
+df['Test_EQ_FM2ATDM'] = df.apply(Test_EQ_FM2ATDM, axis=1)
+df.loc[df['Test_EQ_FM2ATDM'] == False, 'Notification'] = 'Correction'
+df.loc[df['Test_EQ_FM2ATDM'] == False, 'Correction Comments'] = df['Correction Comments'] + 'ATDM does not align with Failure Mode. '
+
+def Test_EQ_EC(df):
+    if ((df['highFM'] == 'deterioration') | (df['highFM'] == 'human intervention') | ((df['highFM'] == 'design issues') & ((df['LOW_FM'] == 'HX') | (df['LOW_FM'] == 'FH')))) & (df['highEC'] != '---'):
+        return True
+    elif ((df['highFM'] == 'deterioration') | (df['highFM'] == 'human intervention') | ((df['highFM'] == 'design issues') & ((df['LOW_FM'] == 'HX') | (df['LOW_FM'] == 'FH')))) & (df['highEC'] == '---'):
+        return False
+    return '---'
+df['Test_EQ_EC'] = df.apply(Test_EQ_EC, axis=1)
+df.loc[df['Test_EQ_EC'] == False, 'Notification'] = 'Correction'
+df.loc[df['Test_EQ_EC'] == False, 'Correction Comments'] = df['Correction Comments'] + 'Equipment Code is missing. '
+
+def Test_EQ_MS(df):
+    if (df['Test_EQ_EC'] == True) & (df['highMS'] != '---'):
+        return True
+    elif (df['Test_EQ_EC'] == True) & (df['highMS'] == '---'):
+        return False
+    return '---'
+df['Test_EQ_MS'] = df.apply(Test_EQ_MS, axis=1)
+df.loc[((df['Test_EQ_MS'] == False) & (df['Notification'] != 'Correction')), 'Notification'] = 'Informational'
+df.loc[df['Test_EQ_MS'] == False, 'Informational Comments'] = df['Informational Comments'] + 'Manufacturer should be OO Other Manufacturer or UU Unknown Manufacturer. '
+
+# ========================================================================================================================
+# END TESTS: EQUIPMENT CODE
+# ========================================================================================================================
+
+# ========================================================================================================================
+# TESTS: PUBLIC ACCIDENT/DAMAGE
+# ========================================================================================================================
+
+# Duplicate of Equipment Code
+# def Test_PA_FM2ATDM(df):
+#     if (df['highFM'] == 'human intervention') & ((df['highATDM'] == 'actions taken') | (df['highATDM'] == 'materials')):
+#         return True
+#     elif (df['highFM'] == 'human intervention') & ((df['highATDM'] != 'actions taken') | (df['highATDM'] != 'materials')):
+#         return False
+#     return '---'
+# df['Test_PA_FM2ATDM'] = df.apply(Test_PA_FM2ATDM, axis=1)
+# df.loc[df['Test_PA_FM2ATDM'] == False, 'Notification'] = 'Correction'
+# df.loc[df['Test_PA_FM2ATDM'] == False, 'Correction Comments'] = df['Correction Comments'] + 'ATDM does not align with Failure Mode. '
+
+def Test_PA_EC(df):
+    if (df['highFM'] == 'human intervention') & (df['highEC'] != '---'):
+        return True
+    elif (df['highFM'] == 'human intervention') & (df['highEC'] == '---'):
+        return '---'
+    return '---'
+df['Test_PA_EC'] = df.apply(Test_PA_EC, axis=1)
+
+def Test_PA_MS(df):
+    if (df['Test_PA_EC'] == True) & (df['highMS'] != '---'):
+        return True
+    elif (df['Test_PA_EC'] == True) & (df['highMS'] == '---'):
+        return False
+    return '---'
+df['Test_PA_MS'] = df.apply(Test_PA_MS, axis=1)
+df.loc[((df['Test_PA_MS'] == False) & (df['Notification'] != 'Correction')), 'Notification'] = 'Informational'
+df.loc[df['Test_PA_MS'] == False, 'Informational Comments'] = df['Informational Comments'] + 'Manufacturer should be OO Other Manufacturer or UU Unknown Manufacturer. '
+
+# ========================================================================================================================
+# END TESTS: PUBLIC ACCIDENT/DAMAGE
+# ========================================================================================================================
+
+# ========================================================================================================================
+# TESTS: WILDLIFE
+# ========================================================================================================================
+
+# def Test_WL_FM2ATDM(df):
+#     if ((df['highFM'] == 'environment') | (df['highFM'] == 'design issues')) & (df['highATDM'] == 'actions taken'):
+#         return True
+#     elif ((df['highFM'] == 'environment') | (df['highFM'] == 'design issues')) & (df['highATDM'] != 'actions taken'):
+#         return False
+#     return '---'
+# df['Test_WL_FM2ATDM'] = df.apply(Test_WL_FM2ATDM, axis=1)
+# df.loc[df['Test_WL_FM2ATDM'] == False, 'Notification'] = 'Correction'
+# df.loc[df['Test_WL_FM2ATDM'] == False, 'Correction Comments'] = df['Correction Comments'] + 'ATDM does not align with Failure Mode. '
+
+def Test_WL_EC(df):
+    if (df['highFM'] == 'environment') & (df['highEC'] != '---'):
+        return True
+    elif (df['highFM'] == 'environment') & (df['highEC'] == '---'):
+        return '---'
+    return '---'
+df['Test_WL_EC'] = df.apply(Test_WL_EC, axis=1)
+
+def Test_WL_MS(df):
+    if (df['Test_WL_EC'] == True) & (df['highMS'] != '---'):
+        return True
+    elif (df['Test_WL_EC'] == True) & (df['highMS'] == '---'):
+        return False
+    return '---'
+df['Test_WL_MS'] = df.apply(Test_WL_MS, axis=1)
+df.loc[((df['Test_WL_MS'] == False) & (df['Notification'] != 'Correction')), 'Notification'] = 'Informational'
+df.loc[df['Test_WL_MS'] == False, 'Informational Comments'] = df['Informational Comments'] + 'Manufacturer should be OO Other Manufacturer or UU Unknown Manufacturer. '
+
+#Fix this
+def Test_WL_MS2(df):
+    if ((df['highFM'] == 'environment') & (df['LOW_FM'] == '04')) & (df['highMS'] == 'animals'):
+        return True
+    elif ((df['highFM'] == 'environment') & (df['LOW_FM'] == '04')) & (df['highMS'] != 'animals'):
+        return False
+    return '---'
+df['Test_WL_MS2'] = df.apply(Test_WL_MS2, axis=1)
+df.loc[df['Test_WL_MS2'] == False, 'Notification'] = 'Correction'
+df.loc[df['Test_WL_MS2'] == False, 'Correction Comments'] = df['Correction Comments'] + 'Species is missing. '
+
+# ========================================================================================================================
+# END TESTS: WILDLIFE
+# ========================================================================================================================
+
+# ========================================================================================================================
+# TESTS: LIGHTNING STRIKE
+# ========================================================================================================================
+
+        # lightning strike rules align with the corrections already stated in previous tests. Please review OFU_Tool_Data (code rules) for confirmation.
+
+# ========================================================================================================================
+# END TESTS: LIGHTNING STRIKE
+# ========================================================================================================================
+
+# ========================================================================================================================
+# TESTS: WEATHER
+# ========================================================================================================================
+
+        # lightning strike rules align with the corrections already stated in previous tests. Please review OFU_Tool_Data (code rules) for confirmation.
+
+# ========================================================================================================================
+# END TESTS: WEATHER
+# ========================================================================================================================
+
+# ========================================================================================================================
+# TESTS: PLANNED (IEEE)
+# ========================================================================================================================
+def Test_PL_FM2ATDM(df):
+    if (df['highFM'] == 'work request') & (df['highATDM'] == 'actions taken'):
+        return True
+    elif (df['highFM'] == 'work request')& (df['highATDM'] != 'actions taken'):
+        return False
+    return '---'
+df['Test_PL_FM2ATDM'] = df.apply(Test_PL_FM2ATDM, axis=1)
+df.loc[df['Test_PL_FM2ATDM'] == False, 'Notification'] = 'Correction'
+df.loc[df['Test_PL_FM2ATDM'] == False, 'Correction Comments'] = df['Correction Comments'] + 'ATDM does not align with Failure Mode. '
+
+def Test_PL_EC(df):
+    if (df['highFM'] == 'work request') & (df['highEC'] != '---'):
+        return True
+    elif (df['highFM'] == 'work request') & (df['highEC'] == '---'):
+        return False
+    return '---'
+df['Test_PL_EC'] = df.apply(Test_PL_EC, axis=1)
+
+def Test_PL_MS(df):
+    if (df['Test_PL_EC'] == True) & (df['highMS'] != '---'):
+        return True
+    elif (df['Test_PL_EC'] == True) & (df['highMS'] == '---'):
+        return False
+    return '---'
+df['Test_PL_MS'] = df.apply(Test_PL_MS, axis=1)
+df.loc[df['Test_PL_MS'] == False, 'Notification'] = 'Informational'
+df.loc[df['Test_PL_MS'] == False, 'Informational Comments'] = df['Informational Comments'] + 'Manufacturer should be OO Other Manufacturer or UU Unknown Manufacturer. '
+# ========================================================================================================================
+# END TESTS: PLANNED (IEEE)
+# ========================================================================================================================
+
+
+
+
+
+
+
+
+
+# ========================================================================================================================
+# HIGH LEVEL TEST: PUBLIC ACCIDENT/DAMAGE | Failure Mode is compared to AD/T/M
+# ========================================================================================================================
+
+# def func4(df):
+#     if [(df['highFM'] == 'human intervention') | (df['highFM'] == 'tree codes')] & (df['highATDM'] == 'actions taken'):
+#         return True
+#     elif [(df['highFM'] == 'environment') | (df['highFM'] == 'design issues')]:
+#         return False
+#     return '---'
+# df['test4'] = df.apply(func4, axis=1)
+# df.loc[df['test4'] == False, 'Notification'] = 'Correction'
+# df.loc[df['test4'] == False, '# Corrections'] = df['# Corrections'] + 1
+# df.loc[df['test4'] == False, 'Comments'] = df['Comments'] + 'ATDM should be (actions taken)'
+
+# ========================================================================================================================
+# TEST END
+# ========================================================================================================================
+
+# ========================================================================================================================
+# HIGH LEVEL TEST: EQUIPMENT FAILURE | Failure Mode is compared to AD/T/M
+# ========================================================================================================================
+
+# ================================
+# The following may need revision: (look at OMS Rules)
+# ================================
+
+# def func3(df):
+#     if ((df['highFM'] == 'deterioration') | (df['highFM'] == 'design issues')) & (df['highATDM'] == 'tree defects'):
+#         return True
+#     elif (df['highFM'] == 'tree codes') & (df['highATDM'] != 'tree defects'):
+#         return False
+#     return '---'
+
+# df['test3'] = df.apply(func3, axis=1)
+# df.loc[df['test3'] == False, 'Notification'] = 'Correction'
+# df.loc[df['test3'] == False, '# Corrections'] = df['# Corrections'] + 1
+# df.loc[df['test3'] == False, 'Comments'] = df['Comments'] + 'Failure Mode is (tree codes), therefor the ATDM should be (tree defects)'
+
+# ========================================================================================================================
+# TEST END
+# ========================================================================================================================
+
+# del df['Category']
+# del df['Op Center']
+# del df['Circuit']
+# del df['Time Off']
+# del df['Time On']
+# del df['Device & Ph']
+# del df['# Cust']
+# del df['Ckt Cust']
+# del df['Dur']
+# del df['Fault Location']
+del df['trimmed_FM']
+del df['trimmed_ATDM']
+del df['trimmed_EC']
+del df['trimmed_MS']
+del df['trimmed_PO']
+del df['LOW_CD']
+del df['LOW_RS']
+del df['LOW_Cause']
+del df['LOW_FM']
+del df['LOW_ATDM']
+del df['LOW_EC']
+del df['LOW_MS']
+del df['LOW_PO']
+del df['LOW_WE']
+del df['trimmed_CD']
+del df['trimmed_RS']
+del df['trimmed_Cause']
+del df['highEC']
+del df['highMS']
+del df['highPO']
+del df['highWE']
+del df['trimmed_WE']
+del df['highCD']
+del df['highRS']
+del df['highCause']
+del df['highFM']
+del df['highATDM']
+
+del df['test1']
+del df['findNull_CD']
+del df['findNull_RS']
+del df['findNull_Cause']
+del df['findNull_FM']
+del df['findNull_ATDM']
+del df['findNull_EC']
+# del df['findNull_MS']
+del df['findNull_PO']
+del df['findNull_WE']
+
+del df['Test_PA_MS']
+del df['Test_PA_EC']
+# del df['Test_PA_FM2ATDM']
+del df['Test_EQ_MS']
+del df['Test_EQ_EC']
+del df['Test_EQ_FM2ATDM']
+del df['Test_Veg_CNT']
+del df['Test_Veg_MS']
+del df['Test_Veg_EC']
+del df['Test_Veg_FM2ATDM']
+# del df['test1']
+del df['Test_Veg_Ded']
+del df['Test_WL_EC']
+del df['Test_WL_MS']
+del df['Test_WL_MS2']
+del df['Test_PL_FM2ATDM']
+del df['Test_PL_EC']
+del df['Test_PL_MS']
+
+
+# del df['Clearing Device']
+# del df['Resp. System']
+# del df['Cause (IEEE)']
+# del df['Failure Mode']
+# del df['AT/D/M']
+# del df['Eq. Code']
+# del df['Manuf./ Species']
+# del df['Cnt']
+# del df['Planned Outages']
+# del df['WE']
+# del df['Crew Remarks']
+# del df['Additional Remarks']
+
+df.to_excel('./uploads/Processed_Outage_Document2.xlsx')
